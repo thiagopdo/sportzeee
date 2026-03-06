@@ -4,8 +4,8 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"dev": "node --watch src/index.js",
-		"start": "node src/index.js",
+		"dev": "node --watch --env-file=.env src/index.js",
+		"start": "node --env-file=.env src/index.js",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate"
 	},
@@ -14,6 +14,8 @@
 	"license": "ISC",
 	"type": "module",
 	"dependencies": {
+		"@arcjet/inspect": "^1.1.0",
+		"@arcjet/node": "^1.1.0",
 		"dotenv": "^17.3.1",
 		"drizzle-orm": "^0.45.1",
 		"express": "^5.2.1",
