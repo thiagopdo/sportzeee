@@ -20,31 +20,45 @@ function broadcast(wss, payload) {
 
 export function attachWebSocketServer(server) {
 	const wss = new WebSocketServer({
-		server,
-		path: "/ws",
+		noServer: true,
 		maxPayload: 1024 * 1024, // 1MB
 	});
 
-	wss.on("connection", async (socket, req) => {
+	server.on("upgrade", async (req, socket, head) => {
 		if (wsArcjet) {
 			try {
 				const decision = await wsArcjet.protect(req);
 
 				if (decision.isDenied()) {
-					const code = decision.reason.isRateLimit() ? 1013 : 1008;
-					const reason = decision.reason.isRateLimit()
-						? "Too many requests"
-						: "Access denied";
+					const isRateLimit = decision.reason.isRateLimit();
+					const status = isRateLimit
+						? "429 Too Many Requests"
+						: "403 Forbidden";
+					const body = isRateLimit ? "Too many requests" : "Access denied";
 
-					socket.close(code, reason);
+					socket.write(
+						`HTTP/1.1 ${status}\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
+					);
+					socket.destroy();
+					return;
 				}
 			} catch (e) {
 				console.error("Error in Arcjet WebSocket protection", e);
-				socket.close(1011, "Server security error");
+				const body = "Server security error";
+				socket.write(
+					`HTTP/1.1 500 Internal Server Error\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
+				);
+				socket.destroy();
 				return;
 			}
 		}
 
+		wss.handleUpgrade(req, socket, head, (ws) => {
+			wss.emit("connection", ws, req);
+		});
+	});
+
+	wss.on("connection", (socket) => {
 		socket.isAlive = true;
 		socket.on("pong", () => {
 			socket.isAlive = true;
